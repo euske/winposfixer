@@ -105,6 +105,7 @@ public class WinPosFixer : Form {
         if (hWinEventHook == IntPtr.Zero) {
             throw new Win32Exception(Marshal.GetLastWin32Error());
         }
+        Console.WriteLine("setupWinEventHook: success");
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -137,16 +138,16 @@ public class WinPosFixer : Form {
         }
     }
 
-    [DllImport("user32.dll", SetLastError=true)]
+    [DllImport("user32.dll")]
     private static extern bool IsWindowVisible(
         IntPtr hWnd);
-    [DllImport("user32.dll", SetLastError=true)]
+    [DllImport("user32.dll")]
     private static extern bool IsZoomed(
         IntPtr hWnd);
-    [DllImport("user32.dll", SetLastError=true)]
+    [DllImport("user32.dll")]
     private static extern bool IsIconic(
         IntPtr hWnd);
-    [DllImport("user32.dll", SetLastError=true)]
+    [DllImport("user32.dll")]
     private static extern bool GetWindowRect(
         IntPtr hWnd, out RECT rect);
 
@@ -154,13 +155,13 @@ public class WinPosFixer : Form {
     [DllImport("user32.dll")]
     private static extern IntPtr GetAncestor(
         IntPtr hWnd, uint gaFlags);
-    [DllImport("user32.dll", SetLastError=true, CharSet=CharSet.Auto)]
+    [DllImport("user32.dll", CharSet=CharSet.Auto)]
     private static extern int GetWindowTextLength(
         IntPtr hWnd);
-    [DllImport("user32.dll", SetLastError=true, CharSet=CharSet.Auto)]
+    [DllImport("user32.dll", CharSet=CharSet.Auto)]
     private static extern int GetWindowText(
         IntPtr hWnd, StringBuilder lpString, int nMaxCount);
-    [DllImport("user32.dll", SetLastError=true, CharSet=CharSet.Auto)]
+    [DllImport("user32.dll", CharSet=CharSet.Auto)]
     private static extern int GetClassName(
         IntPtr hWnd, StringBuilder lpString, int nMaxCount);
 
@@ -170,21 +171,22 @@ public class WinPosFixer : Form {
     private const uint SWP_NOREDRAW = 0x0008;
     private const uint SWP_NOACTIVATE = 0x0010;
     private const uint SWP_ASYNCWINDOWPOS = 0x4000;
-    [DllImport("user32.dll", SetLastError=true)]
+    [DllImport("user32.dll")]
     private static extern bool SetWindowPos(
         IntPtr hWnd, IntPtr hWndInsertAfter,
         int X, int Y, int cx, int cy, uint uFlags);
 
     private string getWindowText(IntPtr hWnd) {
         int len = GetWindowTextLength(hWnd);
+        if (len == 0) return null;
         StringBuilder sb = new StringBuilder(len+1);
-        GetWindowText(hWnd, sb, sb.Capacity);
+        if (GetWindowText(hWnd, sb, sb.Capacity) == 0) return null;
         return sb.ToString();
     }
 
     private string getWindowClass(IntPtr hWnd) {
         StringBuilder sb = new StringBuilder(256);
-        GetClassName(hWnd, sb, sb.Capacity);
+        if (GetClassName(hWnd, sb, sb.Capacity) == 0) return null;
         return sb.ToString();
     }
 
@@ -208,9 +210,11 @@ public class WinPosFixer : Form {
 
     private void fixWindowPos(IntPtr hWnd) {
         string text = getWindowText(hWnd);
+        if (text == null) return;
         string klass = getWindowClass(hWnd);
+        if (klass == null) return;
         RECT rect;
-        GetWindowRect(hWnd, out rect);
+        if (!GetWindowRect(hWnd, out rect)) return;
         if (klass == CLASSNAME &&
             (rect.Left != POS.X || rect.Top != POS.Y)) {
             Console.WriteLine(
