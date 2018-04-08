@@ -176,17 +176,17 @@ public class WinPosFixer : Form {
         IntPtr hWnd, IntPtr hWndInsertAfter,
         int X, int Y, int cx, int cy, uint uFlags);
 
+    private string getWindowClass(IntPtr hWnd) {
+        StringBuilder sb = new StringBuilder(256);
+        if (GetClassName(hWnd, sb, sb.Capacity) == 0) return null;
+        return sb.ToString();
+    }
+
     private string getWindowText(IntPtr hWnd) {
         int len = GetWindowTextLength(hWnd);
         if (len == 0) return null;
         StringBuilder sb = new StringBuilder(len+1);
         if (GetWindowText(hWnd, sb, sb.Capacity) == 0) return null;
-        return sb.ToString();
-    }
-
-    private string getWindowClass(IntPtr hWnd) {
-        StringBuilder sb = new StringBuilder(256);
-        if (GetClassName(hWnd, sb, sb.Capacity) == 0) return null;
         return sb.ToString();
     }
 
@@ -197,34 +197,36 @@ public class WinPosFixer : Form {
         IntPtr hWinEventHook, uint eventType,
         IntPtr hWnd, int idObject, int idChild,
         uint dwEventThread, uint dwmsEventTime) {
-        if (!_enabled.Checked) return;
-        if (idObject != OBJID_WINDOW ||
-            IsZoomed(hWnd) || IsIconic(hWnd) ||
-            hWnd != GetAncestor(hWnd, GA_ROOT)) return;
-        Console.WriteLine(
-            string.Format(
-                "eventProc: eventType={0:x}, hWnd={1}",
-                eventType, hWnd));
-        fixWindowPos(hWnd);
+        if ((eventType == EVENT_OBJECT_SHOW ||
+             eventType == EVENT_OBJECT_LOCATIONCHANGE) &&
+            idObject == OBJID_WINDOW) {
+            if (!IsZoomed(hWnd) && !IsIconic(hWnd) &&
+                hWnd == GetAncestor(hWnd, GA_ROOT)) {
+                Console.WriteLine(
+                    string.Format(
+                        "eventProc: eventType={0:x}, hWnd={1}",
+                        eventType, hWnd));
+                fixWindowPos(hWnd);
+            }
+        }
     }
 
     private void fixWindowPos(IntPtr hWnd) {
+        if (!_enabled.Checked) return;
+        string klass = getWindowClass(hWnd);
+        if (klass != CLASSNAME) return;
         string text = getWindowText(hWnd);
         if (text == null) return;
-        string klass = getWindowClass(hWnd);
-        if (klass == null) return;
         RECT rect;
         if (!GetWindowRect(hWnd, out rect)) return;
-        if (klass == CLASSNAME &&
-            (rect.Left != POS.X || rect.Top != POS.Y)) {
-            Console.WriteLine(
-                string.Format(
-                    "fixWindowPos: hWnd={0}, text={1}, class={2}, rect={3}",
-                    hWnd, text, klass, rect));
-            SetWindowPos(hWnd, IntPtr.Zero, POS.X, POS.Y, 0, 0,
-                         (SWP_NOACTIVATE | SWP_NOSIZE |
-                          SWP_NOZORDER | SWP_NOREDRAW |
-                          SWP_ASYNCWINDOWPOS));
-        }
+        if (rect.Left == POS.X && rect.Top == POS.Y) return;
+        Console.WriteLine(
+            string.Format(
+                "fixWindowPos: hWnd={0}, text={1}, class={2}, rect={3}",
+                hWnd, text, klass, rect));
+        SetWindowPos(hWnd, IntPtr.Zero, POS.X, POS.Y, 0, 0,
+                     (SWP_NOACTIVATE | SWP_NOSIZE |
+                      SWP_NOZORDER | SWP_NOREDRAW |
+                      SWP_ASYNCWINDOWPOS));
     }
 }
