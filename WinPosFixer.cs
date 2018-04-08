@@ -72,44 +72,21 @@ public class WinPosFixer : Form {
         SetParent(Handle, HWND_MESSAGE);
     }
 
-    [DllImport("User32.dll", EntryPoint = "SetParent")]
-    private static extern IntPtr SetParent(IntPtr hWndChild, IntPtr hWndParent);
-    private static IntPtr HWND_MESSAGE = new IntPtr(-3);
-
-    private static IntPtr hWinEventHook = IntPtr.Zero;
+    private static WinEventDelegate _eventProc = new WinEventDelegate(eventProc);
+    private static IntPtr _hWinEventHook = IntPtr.Zero;
     private static void setupWinEventHook() {
-        if (hWinEventHook != IntPtr.Zero) return;
-        hWinEventHook = SetWinEventHook(
+        if (_hWinEventHook != IntPtr.Zero) return;
+        _hWinEventHook = SetWinEventHook(
             EVENT_OBJECT_SHOW, EVENT_OBJECT_LOCATIONCHANGE,
-            IntPtr.Zero, new WinEventDelegate(eventProc),
+            IntPtr.Zero, _eventProc,
             0, 0, (WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS));
-        if (hWinEventHook == IntPtr.Zero) {
+        if (_hWinEventHook == IntPtr.Zero) {
             throw new Win32Exception(Marshal.GetLastWin32Error());
         }
         Console.WriteLine("setupWinEventHook: success");
     }
 
-    private delegate void WinEventDelegate(
-        IntPtr hWinEventHook, uint eventType,
-        IntPtr hWnd, int idObject, int idChild,
-        uint dwEventThread, uint dwmsEventTime);
-    private const uint EVENT_OBJECT_SHOW = 0x8002;
-    private const uint EVENT_OBJECT_LOCATIONCHANGE = 0x800b;
-    private const uint WINEVENT_OUTOFCONTEXT = 0;
-    private const uint WINEVENT_SKIPOWNPROCESS = 2;
-    private const uint OBJID_WINDOW = 0;
-
-    [DllImport("user32.dll", SetLastError=true)]
-    private static extern IntPtr SetWinEventHook(
-        uint eventMin, uint eventMax,
-        IntPtr hmodWinEventProc, WinEventDelegate lpfnWinEventProc,
-        uint idProcess, uint idThread, uint dwFlags);
-
-    [DllImport("user32.dll", SetLastError=true)]
-    private static extern bool UnhookWinEvent(
-        IntPtr hWinEventHook);
-
-    private static string CLASSNAME = "vncviewer::DesktopWindow";
+    private const string CLASSNAME = "vncviewer::DesktopWindow";
     private static Point POS = new Point(70, 100);
 
     private static void eventProc(
@@ -233,4 +210,28 @@ public class WinPosFixer : Form {
     private static extern bool SetWindowPos(
         IntPtr hWnd, IntPtr hWndInsertAfter,
         int X, int Y, int cx, int cy, uint uFlags);
+
+    private static IntPtr HWND_MESSAGE = new IntPtr(-3);
+    [DllImport("User32.dll", EntryPoint = "SetParent")]
+    private static extern IntPtr SetParent(IntPtr hWndChild, IntPtr hWndParent);
+
+    private delegate void WinEventDelegate(
+        IntPtr hWinEventHook, uint eventType,
+        IntPtr hWnd, int idObject, int idChild,
+        uint dwEventThread, uint dwmsEventTime);
+    private const uint EVENT_OBJECT_SHOW = 0x8002;
+    private const uint EVENT_OBJECT_LOCATIONCHANGE = 0x800b;
+    private const uint WINEVENT_OUTOFCONTEXT = 0;
+    private const uint WINEVENT_SKIPOWNPROCESS = 2;
+    private const uint OBJID_WINDOW = 0;
+
+    [DllImport("user32.dll", SetLastError=true)]
+    private static extern IntPtr SetWinEventHook(
+        uint eventMin, uint eventMax,
+        IntPtr hmodWinEventProc, WinEventDelegate lpfnWinEventProc,
+        uint idProcess, uint idThread, uint dwFlags);
+
+    [DllImport("user32.dll", SetLastError=true)]
+    private static extern bool UnhookWinEvent(
+        IntPtr hWinEventHook);
 }
