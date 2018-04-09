@@ -18,8 +18,8 @@ clean:
 	-$(DEL) $(TARGET)
 	-$(DEL) *.lib *.obj *.res *.exe *.pdb
 
-$(TARGET): WinPosFixer.cs
-	$(CSC) $(FLAGS) /out:$@ $** $(LIBS)
+$(TARGET): WinPosFixer.cs WinPosActive.ico WinPosInactive.ico
+	$(CSC) $(FLAGS) /out:$@ WinPosFixer.cs /win32icon:WinPosActive.ico /res:WinPosActive.ico /res:WinPosInactive.ico $(LIBS)
 
 WinPosFixer.res: WinPosFixer.ico
 

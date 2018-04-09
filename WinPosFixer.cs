@@ -3,6 +3,7 @@
 using System;
 using System.IO;
 using System.Drawing;
+using System.Reflection;
 using System.ComponentModel;
 using System.Collections.Generic;
 using System.Text;
@@ -17,13 +18,17 @@ public class WinPosFixer : Form {
         Application.Run(new WinPosFixer());
     }
 
-    private IContainer _components = null;
+    private IContainer _components;
+    private Icon _iconActive;
+    private Icon _iconInactive;
     private NotifyIcon _notifyIcon;
     private static ToolStripMenuItem _enabled;
 
     public WinPosFixer() {
         _components = new System.ComponentModel.Container();
         _notifyIcon = new NotifyIcon(_components);
+        _iconActive = getIcon("WinPosActive.ico");
+        _iconInactive = getIcon("WinPosInactive.ico");
 
         ContextMenuStrip contextMenu = new ContextMenuStrip(_components);
         _enabled = new ToolStripMenuItem();
@@ -62,14 +67,22 @@ public class WinPosFixer : Form {
     }
 
     private void updateStatus() {
-        _notifyIcon.Text = _enabled.Checked? "Active" : "Inactive";
-        _notifyIcon.Icon = this.Icon;
+        bool active = _enabled.Checked;
+        _notifyIcon.Text = active? "Active" : "Inactive";
+        _notifyIcon.Icon = active? _iconActive : _iconInactive;
         _notifyIcon.Visible = true;
     }
 
     protected override void CreateHandle() {
         base.CreateHandle();
         SetParent(Handle, HWND_MESSAGE);
+    }
+
+    private Icon getIcon(string name) {
+        Assembly asm = Assembly.GetAssembly(this.GetType());
+        using (Stream strm = asm.GetManifestResourceStream(name)) {
+            return new Icon(strm);
+        }
     }
 
     private static WinEventDelegate _eventProc = new WinEventDelegate(eventProc);
