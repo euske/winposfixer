@@ -27,6 +27,7 @@ public class WinPosFixer : Form {
     public WinPosFixer() {
         _components = new System.ComponentModel.Container();
         _notifyIcon = new NotifyIcon(_components);
+        _notifyIcon.DoubleClick += icon_DoubleClick;
         _iconActive = getIcon("WinPosActive.ico");
         _iconInactive = getIcon("WinPosInactive.ico");
 
@@ -35,6 +36,8 @@ public class WinPosFixer : Form {
         _enabled.Text = "Active";
         _enabled.Click += check_Click;
         _enabled.Checked = true;
+        Font font = _enabled.Font;
+        _enabled.Font = new Font(font, font.Style | FontStyle.Bold);
         contextMenu.Items.Add(_enabled);
         contextMenu.Items.Add(new ToolStripSeparator());
         ToolStripMenuItem quitItem = new ToolStripMenuItem();
@@ -57,6 +60,10 @@ public class WinPosFixer : Form {
             item.Checked = !item.Checked;
             updateStatus();
         }
+    }
+
+    private void icon_DoubleClick(object sender, EventArgs args) {
+        _enabled.PerformClick();
     }
 
     protected override void Dispose(bool disposing) {
