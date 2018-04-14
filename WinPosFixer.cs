@@ -30,14 +30,14 @@ public class WinPosFixer : Form {
         _notifyIcon.DoubleClick += icon_DoubleClick;
         _iconActive = getIcon("WinPosActive.ico");
         _iconInactive = getIcon("WinPosInactive.ico");
-
-        ContextMenuStrip contextMenu = new ContextMenuStrip(_components);
         _enabled = new ToolStripMenuItem();
         _enabled.Text = "Active";
         _enabled.Click += check_Click;
         _enabled.Checked = true;
         Font font = _enabled.Font;
         _enabled.Font = new Font(font, font.Style | FontStyle.Bold);
+
+        ContextMenuStrip contextMenu = new ContextMenuStrip(_components);
         contextMenu.Items.Add(_enabled);
         contextMenu.Items.Add(new ToolStripSeparator());
         ToolStripMenuItem quitItem = new ToolStripMenuItem();
@@ -50,34 +50,11 @@ public class WinPosFixer : Form {
         updateStatus();
     }
 
-    private void quit_Click(object sender, EventArgs args) {
-        Application.Exit();
-    }
-
-    private void check_Click(object sender, EventArgs args) {
-        if (sender is ToolStripMenuItem) {
-            ToolStripMenuItem item = sender as ToolStripMenuItem;
-            item.Checked = !item.Checked;
-            updateStatus();
-        }
-    }
-
-    private void icon_DoubleClick(object sender, EventArgs args) {
-        _enabled.PerformClick();
-    }
-
     protected override void Dispose(bool disposing) {
         if (disposing && _components != null) {
             _components.Dispose();
         }
         base.Dispose(disposing);
-    }
-
-    private void updateStatus() {
-        bool active = _enabled.Checked;
-        _notifyIcon.Text = active? "Active" : "Inactive";
-        _notifyIcon.Icon = active? _iconActive : _iconInactive;
-        _notifyIcon.Visible = true;
     }
 
     protected override void CreateHandle() {
@@ -92,6 +69,58 @@ public class WinPosFixer : Form {
         }
     }
 
+    private void icon_DoubleClick(object sender, EventArgs args) {
+        _enabled.PerformClick();
+    }
+    private void quit_Click(object sender, EventArgs args) {
+        Application.Exit();
+    }
+    private void check_Click(object sender, EventArgs args) {
+        if (sender is ToolStripMenuItem) {
+            ToolStripMenuItem item = sender as ToolStripMenuItem;
+            item.Checked = !item.Checked;
+            updateStatus();
+        }
+    }
+
+    private void updateStatus() {
+        bool active = _enabled.Checked;
+        _notifyIcon.Text = active? "Active" : "Inactive";
+        _notifyIcon.Icon = active? _iconActive : _iconInactive;
+        _notifyIcon.Visible = true;
+        if (active) {
+            foreach (IntPtr hWnd in enumToplevelWindows()) {
+                fixWindowPos(true, hWnd);
+            }
+        }
+    }
+
+    private static bool enumFunc(
+        IntPtr hWnd, IntPtr lParam) {
+        GCHandle gch = GCHandle.FromIntPtr(lParam);
+        List<IntPtr> a = (List<IntPtr>)gch.Target;
+        a.Add(hWnd);
+        return true;
+    }
+    private static EnumWindowsDelegate _enumFunc = new EnumWindowsDelegate(enumFunc);
+    private static IntPtr[] enumToplevelWindows() {
+        List<IntPtr> a = new List<IntPtr>();
+        GCHandle gch = GCHandle.Alloc(a);
+        EnumWindows(_enumFunc, GCHandle.ToIntPtr(gch));
+        gch.Free();
+        return a.ToArray();
+    }
+
+    private static void eventProc(
+        IntPtr hWinEventHook, uint eventType,
+        IntPtr hWnd, int idObject, int idChild,
+        uint dwEventThread, uint dwmsEventTime) {
+        if ((eventType == EVENT_OBJECT_SHOW ||
+             eventType == EVENT_OBJECT_LOCATIONCHANGE) &&
+            idObject == OBJID_WINDOW) {
+            fixWindowPos(eventType == EVENT_OBJECT_SHOW, hWnd);
+        }
+    }
     private static WinEventDelegate _eventProc = new WinEventDelegate(eventProc);
     private static IntPtr _hWinEventHook = IntPtr.Zero;
     private static void setupWinEventHook() {
@@ -109,37 +138,22 @@ public class WinPosFixer : Form {
     private const string CLASSNAME = "vncviewer::DesktopWindow";
     private static Point POS = new Point(70, 100);
 
-    private static void eventProc(
-        IntPtr hWinEventHook, uint eventType,
-        IntPtr hWnd, int idObject, int idChild,
-        uint dwEventThread, uint dwmsEventTime) {
-        if ((eventType == EVENT_OBJECT_SHOW ||
-             eventType == EVENT_OBJECT_LOCATIONCHANGE) &&
-            idObject == OBJID_WINDOW) {
-            if (IsWindow(hWnd) && !IsZoomed(hWnd) && !IsIconic(hWnd) &&
-                hWnd == GetAncestor(hWnd, GA_ROOT)) {
-                Console.WriteLine(
-                    string.Format(
-                        "eventProc: eventType={0:x}, hWnd={1}",
-                        eventType, hWnd));
-                fixWindowPos(hWnd);
-            }
-        }
-    }
-
-    private static void fixWindowPos(IntPtr hWnd) {
+    private static void fixWindowPos(bool show, IntPtr hWnd) {
         if (!_enabled.Checked) return;
+        if (!IsWindow(hWnd) || IsZoomed(hWnd) || IsIconic(hWnd)) return;
+        if (hWnd != GetAncestor(hWnd, GA_ROOT)) return;
         string klass = getWindowClass(hWnd);
-        if (klass != CLASSNAME) return;
+        if (klass == null) return;
         string text = getWindowText(hWnd);
         if (text == null) return;
         RECT rect;
         if (!GetWindowRect(hWnd, out rect)) return;
-        if (rect.Left == POS.X && rect.Top == POS.Y) return;
         Console.WriteLine(
             string.Format(
-                "fixWindowPos: hWnd={0}, text={1}, class={2}, rect={3}",
-                hWnd, text, klass, rect));
+                "fixWindowPos: hWnd={0}, show={1}, text={2}, class={3}, rect={4}",
+                hWnd, show, text, klass, rect));
+        if (klass != CLASSNAME) return;
+        if (rect.Left == POS.X && rect.Top == POS.Y) return;
         SetWindowPos(hWnd, IntPtr.Zero, POS.X, POS.Y, 0, 0,
                      (SWP_NOACTIVATE | SWP_NOSIZE |
                       SWP_NOZORDER | SWP_NOREDRAW |
@@ -234,6 +248,13 @@ public class WinPosFixer : Form {
     private static IntPtr HWND_MESSAGE = new IntPtr(-3);
     [DllImport("User32.dll", EntryPoint = "SetParent")]
     private static extern IntPtr SetParent(IntPtr hWndChild, IntPtr hWndParent);
+
+    private delegate bool EnumWindowsDelegate(
+        IntPtr hWnd, IntPtr lParam);
+
+    [DllImport("user32.dll", CharSet=CharSet.Auto, SetLastError=true)]
+    private static extern bool EnumWindows(
+        EnumWindowsDelegate lpEnumFunc, IntPtr lParam);
 
     private delegate void WinEventDelegate(
         IntPtr hWinEventHook, uint eventType,

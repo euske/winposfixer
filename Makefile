@@ -6,13 +6,14 @@ CSC=csc /nologo
 
 LIBS=
 FLAGS=/target:winexe
-#FLAGS=/target:exe
+FLAGS_DEBUG=/target:exe
 TARGET=winposfixer.exe
+TARGET_DEBUG=winposfixer_d.exe
 
 all: $(TARGET)
 
-test: $(TARGET)
-	.\$(TARGET)
+test: $(TARGET_DEBUG)
+	.\$(TARGET_DEBUG)
 
 clean:
 	-$(DEL) $(TARGET)
@@ -21,7 +22,5 @@ clean:
 $(TARGET): WinPosFixer.cs WinPosActive.ico WinPosInactive.ico
 	$(CSC) $(FLAGS) /out:$@ WinPosFixer.cs /win32icon:WinPosActive.ico /res:WinPosActive.ico /res:WinPosInactive.ico $(LIBS)
 
-WinPosFixer.res: WinPosFixer.ico
-
-.rc.res:
-	$(RC) $(RCFLAGS) $<
+$(TARGET_DEBUG): WinPosFixer.cs WinPosActive.ico WinPosInactive.ico
+	$(CSC) $(FLAGS_DEBUG) /out:$@ WinPosFixer.cs /win32icon:WinPosActive.ico /res:WinPosActive.ico /res:WinPosInactive.ico $(LIBS)
