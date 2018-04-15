@@ -18,22 +18,20 @@ public class WinPosFixer : Form {
         Application.Run(new WinPosFixer());
     }
 
+    private const string PATH = "winpos.csv";
     private IContainer _components;
-    private Icon _iconActive;
-    private Icon _iconInactive;
-    private NotifyIcon _notifyIcon;
+    private static Icon _iconActive;
+    private static Icon _iconInactive;
+    private static NotifyIcon _notifyIcon;
     private static ToolStripMenuItem _enabled;
-
-    private static Entry[] _entries = new Entry[] {
-        new Entry("vncviewer::DesktopWindow", null, new Point(70,100), null),
-    };
+    private static Entry[] _entries;
 
     public WinPosFixer() {
         _components = new System.ComponentModel.Container();
-        _notifyIcon = new NotifyIcon(_components);
-        _notifyIcon.DoubleClick += icon_DoubleClick;
         _iconActive = getIcon("WinPosActive.ico");
         _iconInactive = getIcon("WinPosInactive.ico");
+        _notifyIcon = new NotifyIcon(_components);
+        _notifyIcon.DoubleClick += icon_DoubleClick;
         _enabled = new ToolStripMenuItem();
         _enabled.Text = "Active";
         _enabled.Click += check_Click;
@@ -44,14 +42,21 @@ public class WinPosFixer : Form {
         ContextMenuStrip contextMenu = new ContextMenuStrip(_components);
         contextMenu.Items.Add(_enabled);
         contextMenu.Items.Add(new ToolStripSeparator());
+        ToolStripMenuItem reloadItem = new ToolStripMenuItem();
+        reloadItem.Text = "Reload";
+        reloadItem.Click += reload_Click;
+        contextMenu.Items.Add(reloadItem);
         ToolStripMenuItem quitItem = new ToolStripMenuItem();
         quitItem.Text = "Quit";
         quitItem.Click += quit_Click;
         contextMenu.Items.Add(quitItem);
         _notifyIcon.ContextMenuStrip = contextMenu;
+        _notifyIcon.Visible = true;
+
+        loadEntries(PATH);
+        updateStatus();
 
         setupWinEventHook();
-        updateStatus();
     }
 
     protected override void Dispose(bool disposing) {
@@ -79,6 +84,10 @@ public class WinPosFixer : Form {
     private void quit_Click(object sender, EventArgs args) {
         Application.Exit();
     }
+    private void reload_Click(object sender, EventArgs args) {
+        loadEntries(PATH);
+        updateStatus();
+    }
     private void check_Click(object sender, EventArgs args) {
         if (sender is ToolStripMenuItem) {
             ToolStripMenuItem item = sender as ToolStripMenuItem;
@@ -87,11 +96,10 @@ public class WinPosFixer : Form {
         }
     }
 
-    private void updateStatus() {
+    private static void updateStatus() {
         bool active = _enabled.Checked;
         _notifyIcon.Text = active? "Active" : "Inactive";
         _notifyIcon.Icon = active? _iconActive : _iconInactive;
-        _notifyIcon.Visible = true;
         if (active) {
             foreach (IntPtr hWnd in enumToplevelWindows()) {
                 fixWindowPos(true, hWnd);
@@ -183,17 +191,41 @@ public class WinPosFixer : Form {
         public string Text;
         public Point? Pos;
         public Size? Size;
-        public Entry(string klass, string text, Point? pos, Size? size) {
+        public Entry(string klass, string text) {
             this.Klass = klass;
             this.Text = text;
-            this.Pos = pos;
-            this.Size = size;
         }
         public override string ToString() {
             return string.Format(
                 "<Entry: klass={0}, text={1}, pos={2}, size={3}>",
                 this.Klass, this.Text, this.Pos, this.Size);
         }
+    }
+
+    private static void loadEntries(string path) {
+        Console.WriteLine("loadEntries: opening: "+path);
+        List<Entry> entries = new List<Entry>();
+        try {
+            using (TextReader reader = new StreamReader(path)) {
+                while (true) {
+                    string line = reader.ReadLine();
+                    if (line == null) break;
+                    string[] cols = line.Trim().Split(',');
+                    if (cols.Length < 2) continue;
+                    Entry ent = new Entry(cols[0], cols[1]);
+                    if (4 <= cols.Length) {
+                        ent.Pos = new Point(int.Parse(cols[2]), int.Parse(cols[3]));
+                    }
+                    if (6 <= cols.Length) {
+                        ent.Size = new Size(int.Parse(cols[2]), int.Parse(cols[3]));
+                    }
+                    Console.WriteLine("loadEntries: ent="+ent);
+                    entries.Add(ent);
+                }
+            }
+        } catch (IOException ) {
+        }
+        _entries = entries.ToArray();
     }
 
     private static Entry findEntry(string klass, string text) {
