@@ -160,16 +160,35 @@ public class WinPosFixer : Form {
         Console.WriteLine("fixWindowPos: entry="+entry);
         RECT rect;
         if (!GetWindowRect(hWnd, out rect)) return;
-        Point pos = entry.Pos.Value;
-        Console.WriteLine(
-            string.Format(
-                "fixWindowPos: hWnd={0}, show={1}, text={2}, class={3}, rect={4}",
-                hWnd, show, text, klass, rect));
-        if (rect.Left == pos.X && rect.Top == pos.Y) return;
-        SetWindowPos(hWnd, IntPtr.Zero, pos.X, pos.Y, 0, 0,
-                     (SWP_NOACTIVATE | SWP_NOSIZE |
-                      SWP_NOZORDER | SWP_NOREDRAW |
-                      SWP_ASYNCWINDOWPOS));
+        Console.WriteLine("fixWindowPos: hWnd="+hWnd+", show="+show+
+                          ", text="+text+", class="+klass+", rect="+rect);
+        Point pos = Point.Empty;
+        bool posSpec = false;
+        if (entry.Pos != null) {
+            pos = entry.Pos.Value;
+            if (pos.X != rect.Left || pos.Y != rect.Top) {
+                posSpec = true;
+            }
+        }
+        Size size = Size.Empty;
+        bool sizeSpec = false;
+        if (entry.Size != null) {
+            size = entry.Size.Value;
+            if (size.Width != rect.Width || size.Height == rect.Height) {
+                sizeSpec = true;
+            }
+        }
+        Console.WriteLine("fixWindowPos: posSpec="+posSpec+", sizeSpec="+sizeSpec);
+        if (!posSpec && !sizeSpec) return;
+        uint flags = (SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOREDRAW |
+                      SWP_ASYNCWINDOWPOS);
+        if (!posSpec) {
+            flags |= SWP_NOMOVE;
+        }
+        if (!sizeSpec) {
+            flags |= SWP_NOSIZE;
+        }
+        SetWindowPos(hWnd, IntPtr.Zero, pos.X, pos.Y, size.Width, size.Height, flags);
     }
 
     private static string getWindowClass(IntPtr hWnd) {
