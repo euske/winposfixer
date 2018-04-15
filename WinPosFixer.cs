@@ -24,6 +24,10 @@ public class WinPosFixer : Form {
     private NotifyIcon _notifyIcon;
     private static ToolStripMenuItem _enabled;
 
+    private static Entry[] _entries = new Entry[] {
+        new Entry("vncviewer::DesktopWindow", null, new Point(70,100), null),
+    };
+
     public WinPosFixer() {
         _components = new System.ComponentModel.Container();
         _notifyIcon = new NotifyIcon(_components);
@@ -135,9 +139,6 @@ public class WinPosFixer : Form {
         Console.WriteLine("setupWinEventHook: success");
     }
 
-    private const string CLASSNAME = "vncviewer::DesktopWindow";
-    private static Point POS = new Point(70, 100);
-
     private static void fixWindowPos(bool show, IntPtr hWnd) {
         if (!_enabled.Checked) return;
         if (!IsWindow(hWnd) || IsZoomed(hWnd) || IsIconic(hWnd)) return;
@@ -146,15 +147,18 @@ public class WinPosFixer : Form {
         if (klass == null) return;
         string text = getWindowText(hWnd);
         if (text == null) return;
+        Entry entry = findEntry(klass, text);
+        if (entry == null) return;
+        Console.WriteLine("fixWindowPos: entry="+entry);
         RECT rect;
         if (!GetWindowRect(hWnd, out rect)) return;
+        Point pos = entry.Pos.Value;
         Console.WriteLine(
             string.Format(
                 "fixWindowPos: hWnd={0}, show={1}, text={2}, class={3}, rect={4}",
                 hWnd, show, text, klass, rect));
-        if (klass != CLASSNAME) return;
-        if (rect.Left == POS.X && rect.Top == POS.Y) return;
-        SetWindowPos(hWnd, IntPtr.Zero, POS.X, POS.Y, 0, 0,
+        if (rect.Left == pos.X && rect.Top == pos.Y) return;
+        SetWindowPos(hWnd, IntPtr.Zero, pos.X, pos.Y, 0, 0,
                      (SWP_NOACTIVATE | SWP_NOSIZE |
                       SWP_NOZORDER | SWP_NOREDRAW |
                       SWP_ASYNCWINDOWPOS));
@@ -172,6 +176,33 @@ public class WinPosFixer : Form {
         StringBuilder sb = new StringBuilder(len+1);
         if (GetWindowText(hWnd, sb, sb.Capacity) == 0) return null;
         return sb.ToString();
+    }
+
+    private class Entry {
+        public string Klass;
+        public string Text;
+        public Point? Pos;
+        public Size? Size;
+        public Entry(string klass, string text, Point? pos, Size? size) {
+            this.Klass = klass;
+            this.Text = text;
+            this.Pos = pos;
+            this.Size = size;
+        }
+        public override string ToString() {
+            return string.Format(
+                "<Entry: klass={0}, text={1}, pos={2}, size={3}>",
+                this.Klass, this.Text, this.Pos, this.Size);
+        }
+    }
+
+    private static Entry findEntry(string klass, string text) {
+        foreach (Entry entry in _entries) {
+            if (!string.IsNullOrEmpty(entry.Klass) && entry.Klass != klass) continue;
+            if (!string.IsNullOrEmpty(entry.Text) && entry.Text != text) continue;
+            return entry;
+        }
+        return null;
     }
 
     [StructLayout(LayoutKind.Sequential)]
