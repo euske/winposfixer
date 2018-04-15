@@ -9,8 +9,12 @@ FLAGS=/target:winexe
 FLAGS_DEBUG=/target:exe
 TARGET=winposfixer.exe
 TARGET_DEBUG=winposfixer_d.exe
+DESTDIR=%UserProfile%\bin
 
 all: $(TARGET)
+
+install: $(TARGET)
+	$(COPY) $(TARGET) $(DESTDIR)
 
 test: $(TARGET_DEBUG)
 	.\$(TARGET_DEBUG)

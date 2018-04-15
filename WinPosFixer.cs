@@ -155,25 +155,33 @@ public class WinPosFixer : Form {
         if (klass == null) return;
         string text = getWindowText(hWnd);
         if (text == null) return;
-        Entry entry = findEntry(klass, text);
-        if (entry == null) return;
-        Console.WriteLine("fixWindowPos: entry="+entry);
+        if (show) {
+            Console.WriteLine(
+                "fixWindowPos: hWnd="+hWnd+", text="+text+", class="+klass);
+        }
+        Entry found = null;
+        foreach (Entry entry in _entries) {
+            if (entry.IsMatch(klass, text)) {
+                found = entry;
+                break;
+            }
+        }
+        if (found == null) return;
         RECT rect;
         if (!GetWindowRect(hWnd, out rect)) return;
-        Console.WriteLine("fixWindowPos: hWnd="+hWnd+", show="+show+
-                          ", text="+text+", class="+klass+", rect="+rect);
+        Console.WriteLine("fixWindowPos: found="+found+", rect="+rect);
         Point pos = Point.Empty;
         bool posSpec = false;
-        if (entry.Pos != null) {
-            pos = entry.Pos.Value;
+        if (found.Pos != null) {
+            pos = found.Pos.Value;
             if (pos.X != rect.Left || pos.Y != rect.Top) {
                 posSpec = true;
             }
         }
         Size size = Size.Empty;
         bool sizeSpec = false;
-        if (entry.Size != null) {
-            size = entry.Size.Value;
+        if (found.Size != null) {
+            size = found.Size.Value;
             if (size.Width != rect.Width || size.Height == rect.Height) {
                 sizeSpec = true;
             }
@@ -210,14 +218,22 @@ public class WinPosFixer : Form {
         public string Text;
         public Point? Pos;
         public Size? Size;
+
         public Entry(string klass, string text) {
             this.Klass = klass;
             this.Text = text;
         }
+
         public override string ToString() {
             return string.Format(
                 "<Entry: klass={0}, text={1}, pos={2}, size={3}>",
                 this.Klass, this.Text, this.Pos, this.Size);
+        }
+
+        public bool IsMatch(string klass, string text) {
+            if (!string.IsNullOrEmpty(this.Klass) && this.Klass != klass) return false;
+            if (!string.IsNullOrEmpty(this.Text) && this.Text != text) return false;
+            return true;
         }
     }
 
@@ -245,15 +261,6 @@ public class WinPosFixer : Form {
         } catch (IOException ) {
         }
         _entries = entries.ToArray();
-    }
-
-    private static Entry findEntry(string klass, string text) {
-        foreach (Entry entry in _entries) {
-            if (!string.IsNullOrEmpty(entry.Klass) && entry.Klass != klass) continue;
-            if (!string.IsNullOrEmpty(entry.Text) && entry.Text != text) continue;
-            return entry;
-        }
-        return null;
     }
 
     [StructLayout(LayoutKind.Sequential)]
