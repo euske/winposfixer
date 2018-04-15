@@ -161,7 +161,7 @@ public class WinPosFixer : Form {
         }
         Entry found = null;
         foreach (Entry entry in _entries) {
-            if (entry.IsMatch(klass, text)) {
+            if (entry.Match(klass, text)) {
                 found = entry;
                 break;
             }
@@ -230,9 +230,20 @@ public class WinPosFixer : Form {
                 this.Klass, this.Text, this.Pos, this.Size);
         }
 
-        public bool IsMatch(string klass, string text) {
-            if (!string.IsNullOrEmpty(this.Klass) && this.Klass != klass) return false;
-            if (!string.IsNullOrEmpty(this.Text) && this.Text != text) return false;
+        private static bool PatMatch(string pat, string s) {
+            int i = pat.IndexOf('*');
+            if (0 <= i) {
+                pat = pat.Substring(0, i);
+                s = s.Substring(0, i);
+            }
+            return (pat == s);
+        }
+
+        public bool Match(string klass, string text) {
+            if (!string.IsNullOrEmpty(this.Klass) &&
+                !PatMatch(this.Klass, klass)) return false;
+            if (!string.IsNullOrEmpty(this.Text) &&
+                !PatMatch(this.Text, text)) return false;
             return true;
         }
     }
