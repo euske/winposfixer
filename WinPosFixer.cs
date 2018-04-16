@@ -18,7 +18,7 @@ public class WinPosFixer : Form {
         Application.Run(new WinPosFixer());
     }
 
-    private const string PATH = "winpos.csv";
+    private const string CONFIG_PATH = "winpos.csv";
     private IContainer _components;
     private static Icon _iconActive;
     private static Icon _iconInactive;
@@ -53,7 +53,7 @@ public class WinPosFixer : Form {
         _notifyIcon.ContextMenuStrip = contextMenu;
         _notifyIcon.Visible = true;
 
-        loadEntries(PATH);
+        loadEntries(CONFIG_PATH);
         updateStatus();
 
         setupWinEventHook();
@@ -85,7 +85,7 @@ public class WinPosFixer : Form {
         Application.Exit();
     }
     private void reload_Click(object sender, EventArgs args) {
-        loadEntries(PATH);
+        loadEntries(CONFIG_PATH);
         updateStatus();
     }
     private void check_Click(object sender, EventArgs args) {
@@ -114,7 +114,8 @@ public class WinPosFixer : Form {
         a.Add(hWnd);
         return true;
     }
-    private static EnumWindowsDelegate _enumFunc = new EnumWindowsDelegate(enumFunc);
+    private static EnumWindowsDelegate _enumFunc =
+        new EnumWindowsDelegate(enumFunc);
     private static IntPtr[] enumToplevelWindows() {
         List<IntPtr> a = new List<IntPtr>();
         GCHandle gch = GCHandle.Alloc(a);
@@ -133,7 +134,8 @@ public class WinPosFixer : Form {
             fixWindowPos(eventType == EVENT_OBJECT_SHOW, hWnd);
         }
     }
-    private static WinEventDelegate _eventProc = new WinEventDelegate(eventProc);
+    private static WinEventDelegate _eventProc =
+        new WinEventDelegate(eventProc);
     private static IntPtr _hWinEventHook = IntPtr.Zero;
     private static void setupWinEventHook() {
         if (_hWinEventHook != IntPtr.Zero) return;
@@ -186,7 +188,8 @@ public class WinPosFixer : Form {
                 sizeSpec = true;
             }
         }
-        Console.WriteLine("fixWindowPos: posSpec="+posSpec+", sizeSpec="+sizeSpec);
+        Console.WriteLine("fixWindowPos: posSpec="+posSpec+
+                          ", sizeSpec="+sizeSpec);
         if (!posSpec && !sizeSpec) return;
         uint flags = (SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOREDRAW |
                       SWP_ASYNCWINDOWPOS);
@@ -196,7 +199,8 @@ public class WinPosFixer : Form {
         if (!sizeSpec) {
             flags |= SWP_NOSIZE;
         }
-        SetWindowPos(hWnd, IntPtr.Zero, pos.X, pos.Y, size.Width, size.Height, flags);
+        SetWindowPos(hWnd, IntPtr.Zero, pos.X, pos.Y,
+                     size.Width, size.Height, flags);
     }
 
     private static string getWindowClass(IntPtr hWnd) {
@@ -260,10 +264,12 @@ public class WinPosFixer : Form {
                     if (cols.Length < 2) continue;
                     Entry ent = new Entry(cols[0], cols[1]);
                     if (4 <= cols.Length) {
-                        ent.Pos = new Point(int.Parse(cols[2]), int.Parse(cols[3]));
+                        ent.Pos = new Point(int.Parse(cols[2]),
+                                            int.Parse(cols[3]));
                     }
                     if (6 <= cols.Length) {
-                        ent.Size = new Size(int.Parse(cols[2]), int.Parse(cols[3]));
+                        ent.Size = new Size(int.Parse(cols[4]),
+                                            int.Parse(cols[5]));
                     }
                     Console.WriteLine("loadEntries: ent="+ent);
                     entries.Add(ent);
