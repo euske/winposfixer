@@ -2,6 +2,7 @@
 //
 using System;
 using System.IO;
+using System.Diagnostics;
 using System.Drawing;
 using System.Reflection;
 using System.ComponentModel;
@@ -42,10 +43,18 @@ public class WinPosFixer : Form {
         ContextMenuStrip contextMenu = new ContextMenuStrip(_components);
         contextMenu.Items.Add(_enabled);
         contextMenu.Items.Add(new ToolStripSeparator());
-        ToolStripMenuItem reloadItem = new ToolStripMenuItem();
-        reloadItem.Text = "Reload";
-        reloadItem.Click += reload_Click;
-        contextMenu.Items.Add(reloadItem);
+        ToolStripMenuItem listWindowsItem = new ToolStripMenuItem();
+        listWindowsItem.Text = "List Windows";
+        listWindowsItem.Click += listWindows_Click;
+        contextMenu.Items.Add(listWindowsItem);
+        ToolStripMenuItem openConfigItem = new ToolStripMenuItem();
+        openConfigItem.Text = "Open Config";
+        openConfigItem.Click += openConfig_Click;
+        contextMenu.Items.Add(openConfigItem);
+        ToolStripMenuItem reloadConfigItem = new ToolStripMenuItem();
+        reloadConfigItem.Text = "Reload Config";
+        reloadConfigItem.Click += reloadConfig_Click;
+        contextMenu.Items.Add(reloadConfigItem);
         ToolStripMenuItem quitItem = new ToolStripMenuItem();
         quitItem.Text = "Quit";
         quitItem.Click += quit_Click;
@@ -84,7 +93,45 @@ public class WinPosFixer : Form {
     private void quit_Click(object sender, EventArgs args) {
         Application.Exit();
     }
-    private void reload_Click(object sender, EventArgs args) {
+    private void listWindows_Click(object sender, EventArgs args) {
+        StringBuilder b = new StringBuilder();
+        foreach (IntPtr hWnd in enumToplevelWindows()) {
+            if (!IsWindow(hWnd) || !IsWindowVisible(hWnd) ||
+                IsZoomed(hWnd) || IsIconic(hWnd)) continue;
+            if (hWnd != GetAncestor(hWnd, GA_ROOT)) continue;
+            string klass = getWindowClass(hWnd);
+            if (klass == null) continue;
+            string text = getWindowText(hWnd);
+            if (text == null) continue;
+            RECT rect;
+            if (!GetWindowRect(hWnd, out rect)) continue;
+            b.Append(string.Format(
+                         "{0},{1},{2},{3},{4},{5}"+Environment.NewLine,
+                         klass, text, rect.Left, rect.Top,
+                         rect.Width, rect.Height));
+        }
+        Form form = new Form();
+        TextBox textBox = new TextBox();
+        textBox.Dock = DockStyle.Fill;
+        textBox.Multiline = true;
+        textBox.ReadOnly = true;
+        textBox.ScrollBars = ScrollBars.Vertical;
+        textBox.Text = b.ToString();
+        form.Owner = this;
+        form.Text = "Window List";
+        form.Size = new Size(800, 600);
+        form.StartPosition = FormStartPosition.CenterScreen;
+        form.FormBorderStyle = FormBorderStyle.SizableToolWindow;
+        form.Controls.Add(textBox);
+        form.Show();
+    }
+    private void openConfig_Click(object sender, EventArgs args) {
+        try {
+            Process.Start(CONFIG_PATH);
+        } catch (Win32Exception ) {
+        }
+    }
+    private void reloadConfig_Click(object sender, EventArgs args) {
         loadEntries(CONFIG_PATH);
         updateStatus();
     }
