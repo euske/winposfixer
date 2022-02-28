@@ -311,12 +311,18 @@ public class WinPosFixer : Form {
                     if (cols.Length < 2) continue;
                     Entry ent = new Entry(cols[0], cols[1]);
                     if (4 <= cols.Length) {
-                        ent.Pos = new Point(int.Parse(cols[2]),
-                                            int.Parse(cols[3]));
+                        try {
+                            ent.Pos = new Point(int.Parse(cols[2]),
+                                                int.Parse(cols[3]));
+                        } catch (FormatException) {
+                        }
                     }
                     if (6 <= cols.Length) {
-                        ent.Size = new Size(int.Parse(cols[4]),
-                                            int.Parse(cols[5]));
+                        try {
+                            ent.Size = new Size(int.Parse(cols[4]),
+                                                int.Parse(cols[5]));
+                        } catch (FormatException) {
+                        }
                     }
                     Console.WriteLine("loadEntries: ent="+ent);
                     entries.Add(ent);
